@@ -4,14 +4,13 @@
         {
             "type": "al",
             "request": "launch",
-            "name": "Your own server",
+            "name": "Localhost",
             "server": "http://localhost",
             "serverInstance": "BC140",
             "authentication": "Windows",
-            "startupObjectType": "Page",
             "breakOnError": true,
             "launchBrowser": true,
-            "schemaUpdateMode": "Recreate"
+            "schemaUpdateMode": "Recreate"   // change to ForceSync
         }
     ]
 }

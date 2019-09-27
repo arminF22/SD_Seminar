@@ -4,7 +4,7 @@ page 50106 "CSD Seminar Comment Sheet"
     ApplicationArea = All;
     UsageCategory = Lists;
     SourceTable = "CSD Seminar Comment Line";
-    Caption = 'Seminar Comment Line';
+    Caption = 'Seminar Comment Sheet';
 
     layout
     {

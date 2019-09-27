@@ -1,8 +1,8 @@
 page 50117 "CSD Seminar Details FactBox"
+// CSD1.00 - 2018-01-01 - D. E. Veloper
+//   Chapter 6 - Lab 2
+//     - Created new page
 {
-    // CSD1.00 - 2018-01-01 - D. E. Veloper
-    //   Chapter 6 - Lab 2
-    //     - Created new page
 
     Caption = 'Seminar Details';
     PageType = CardPart;
