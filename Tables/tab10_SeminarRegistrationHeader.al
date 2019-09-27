@@ -222,7 +222,7 @@ table 50110 "CSD Seminar Reg. Header"
         field(22; Comment; Boolean)
         {
             Caption = 'Comment';
-            CalcFormula = Exist ("CSD Seminar Comment Line" where ("Table Name" = const ("Seminar Registration Header"),
+            CalcFormula = Exist ("CSD Seminar Comment Line" where ("Table Name" = const ("Seminar Registration"),
                                                               "No." = Field ("No.")));
             Editable = false;
             FieldClass = FlowField;
@@ -313,6 +313,10 @@ table 50110 "CSD Seminar Reg. Header"
 
     trigger OnDelete();
     begin
+
+        if (CurrFieldNo > 0) then
+            TestField(Status, Status::Canceled);
+
         SeminarRegLine.RESET;
         SeminarRegLine.SETRANGE("Document No.", "No.");
         SeminarRegLine.SETRANGE(Registered, true);
@@ -344,6 +348,13 @@ table 50110 "CSD Seminar Reg. Header"
             NoSeriesMgt.InitSeries(SeminarSetup."Seminar Registration Nos.", xRec."No. Series", 0D, "No.", "No. Series");
         end;
 
+        InitRecord();
+
+    end;
+
+    local procedure InitRecord()
+
+    begin
         if "Posting Date" = 0D then
             "Posting Date" := WORKDATE;
         "Document Date" := WORKDATE;
