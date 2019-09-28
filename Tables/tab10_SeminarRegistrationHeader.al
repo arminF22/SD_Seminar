@@ -64,9 +64,9 @@ table 50110 "CSD Seminar Reg. Header"
         {
             Caption = 'Seminar Name';
         }
-        field(5; "Instructor Resource No"; Code[20])
+        field(5; "Instructor Resource No."; Code[20])
         {
-            Caption = 'Instructor Resource No';
+            Caption = 'Instructor Resource No.';
             TableRelation = Resource where (Type = const (Person));
             trigger OnValidate();
             begin

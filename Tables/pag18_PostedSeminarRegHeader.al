@@ -29,7 +29,7 @@ table 50118 "Posted Seminar Reg. Header"
         }
         field(5; "Instructor Resource No."; Code[20])
         {
-            Caption = 'Instructor Resource No';
+            Caption = 'Instructor Resource No.';
             TableRelation = Resource where (Type = const (Person));
 
         }

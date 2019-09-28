@@ -4,10 +4,116 @@ codeunit 50100 "CSD Seminar-Post"
     //   Chapter 7 - Lab 5-2
     //     - Created new codeunit
 
+    // CSD1.00 - 2018-01-01 - D. E. Veloper
+    // Chapter 7 - Lab 4-7
+
     TableNo = 50110;
 
     trigger OnRun();
+
     begin
+
+        ClearAll;
+        SeminarRegHeader := Rec;
+
+        with SeminarRegHeader do begin
+
+            TestField("Posting Date");
+
+            TestField("Document Date");
+
+            TestField("Seminar No.");
+
+            TestField(Duration);
+
+            TestField("Instructor Resource No.");
+
+            TestField("Room Resource No.");
+
+            TestField(Status, Status::Closed);
+
+            SeminarRegLine.Reset;
+            SeminarRegLine.SetRange("Document No.", "No.");
+
+            if SeminarRegLine.IsEmpty then
+                Error(Text001);
+
+            Window.Open('#1#################################\\' +
+                Text002);
+            Window.Update(1, StrSubstNo('%1 %2', Text003, "No."));
+
+            if SeminarRegHeader."Posting No." = '' then begin
+
+                TestField("Posting No. Series");
+                "Posting No." := NoSeriesMgt.GetNextNo("Posting No. Series", "Posting Date", true);
+                modify;
+                Commit;
+
+            end;
+
+            SeminarRegLine.LockTable;
+            SourceCodeSetup.Get;
+            SourceCode := SourceCodeSetup."CSD Seminar";
+            PstdSeminarRegHeader.Init;
+            PstdSeminarRegHeader.TransferFields(SeminarRegHeader);
+            PstdSeminarRegHeader."No." := "Posting No.";
+            PstdSeminarRegHeader."No. Series" := "Posting No. Series";
+            PstdSeminarRegHeader."Source Code" := SourceCode;
+            PstdSeminarRegHeader."User ID" := UserId;
+            PstdSeminarRegHeader.Insert;
+
+            Window.Update(1, StrSubstNo(Text004, "No.",
+            PstdSeminarRegHeader."No."));
+
+            CopyCommentLines(
+                SeminarCommentLine."Table Name"::"Seminar Registration",
+                SeminarCommentLine."Table Name"::"Posted Seminar Registration",
+                 "No.", PstdSeminarRegHeader."No.");
+            CopyCharges("No.", PstdSeminarRegHeader."No.");
+
+            LineCount := 0;
+            SeminarRegLine.Reset;
+            SeminarRegLine.SetRange("Document No.", "No.");
+
+            if SeminarRegLine.FindSet then begin
+
+                repeat
+                until SeminarRegLine.Next = 0;
+
+            end;
+
+            Window.Update(2, LineCount);
+            SeminarRegLine.TestField("Bill-to Customer No.");
+            SeminarRegLine.TestField("Participant Contact No.");
+
+            if not SeminarRegLine."To Invoice" then begin
+                SeminarRegLine."Seminar Price" := 0;
+                SeminarRegLine."Line Discount %" := 0;
+                SeminarRegLine."Line Discount Amount" := 0;
+                SeminarRegLine.Amount := 0;
+            end;
+
+            // Post seminar entry
+            PostSeminarJnlLine(2); // Participant
+            // Insert posted seminar registration line
+            PstdSeminarRegLine.Init;
+            PstdSeminarRegLine.TransferFields(SeminarRegLine);
+            PstdSeminarRegLine."Document No." :=
+            PstdSeminarRegHeader."No.";
+            PstdSeminarRegLine.Insert;
+
+            // Post charges to seminar ledger
+            PostCharges;
+            // Post instructor to seminar ledger
+            PostSeminarJnlLine(0); // Instructor
+            // Post seminar room to seminar ledger
+            PostSeminarJnlLine(1); // Room
+
+            Delete(true);
+
+        end;
+        Rec := SeminarRegHeader;
+
     end;
 
     var
@@ -103,14 +209,119 @@ codeunit 50100 "CSD Seminar-Post"
             PstdSeminarRegHeader."No.";
             ResJnlPostLine.RunWithCheck(ResJnlLine);
         end;
+        ResLedgEntry.FindLast;
+        exit(ResLedgEntry."Entry No.");
     end;
 
     local procedure PostSeminarJnlLine(ChargeType: Option Instructor,Room,Participant,Charge);
+
     begin
+        with SeminarRegHeader do begin
+
+            SeminarJnlLine.init;
+            SeminarJnlLine."Seminar No." := "Seminar No.";
+            SeminarJnlLine."Posting Date" := "Posting Date";
+            SeminarJnlLine."Document Date" := "Document Date";
+            SeminarJnlLine."Document No." :=
+            PstdSeminarRegHeader."No.";
+            SeminarJnlLine."Charge Type" := ChargeType;
+            SeminarJnlLine."Instructor Resource No." := "Instructor Resource No.";
+            SeminarJnlLine."Starting Date" := "Starting Date";
+            SeminarJnlLine."Seminar Registration No." :=
+            PstdSeminarRegHeader."No.";
+            SeminarJnlLine."Room Resource No." :=
+            "Room Resource No.";
+            SeminarJnlLine."Source Type" :=
+            SeminarJnlLine."Source Type"::Seminar;
+            SeminarJnlLine."Source No." := "Seminar No.";
+            SeminarJnlLine."Source Code" := SourceCode;
+            SeminarJnlLine."Reason Code" := "Reason Code";
+            SeminarJnlLine."Posting No. Series" :=
+            "Posting No. Series";
+
+            case ChargeType of
+                ChargeType::Instructor:
+                    begin
+
+                        Instructor.get("Instructor Resource No.");
+                        SeminarJnlLine.Description := Instructor.Name;
+                        SeminarJnlLine.Type :=
+                        SeminarJnlLine.Type::Resource;
+                        SeminarJnlLine.Chargeable := false;
+                        SeminarJnlLine.Quantity := Duration;
+                        SeminarJnlLine."Res. Ledger Entry No." :=
+                        PostResJnlLine(Instructor);
+
+                    end;
+
+                ChargeType::Room:
+                    begin
+
+                        Room.GET("Room Resource No.");
+                        SeminarJnlLine.Description := Room.Name;
+                        SeminarJnlLine.Type := SeminarJnlLine.Type::Resource;
+                        SeminarJnlLine.Chargeable := false;
+                        SeminarJnlLine.Quantity := Duration;
+                        // Post to resource ledger
+                        SeminarJnlLine."Res. Ledger Entry No." :=
+                        PostResJnlLine(Room);
+
+                    end;
+
+                ChargeType::Participant:
+                    begin
+
+                        SeminarJnlLine."Bill-to Customer No." :=
+                        SeminarRegLine."Bill-to Customer No.";
+                        SeminarJnlLine."Participant Contact No." :=
+                        SeminarRegLine."Participant Contact No.";
+                        SeminarJnlLine."Participant Name" :=
+                        SeminarRegLine."Participant Name";
+                        SeminarJnlLine.Description :=
+                        SeminarRegLine."Participant Name";
+                        SeminarJnlLine.Type := SeminarJnlLine.Type::Resource;
+                        SeminarJnlLine.Chargeable := SeminarRegLine."To Invoice";
+                        SeminarJnlLine.Quantity := 1;
+                        SeminarJnlLine."Unit Price" := SeminarRegLine.Amount;
+                        SeminarJnlLine."Total Price" := SeminarRegLine.Amount;
+
+                    end;
+
+                ChargeType::Charge:
+                    begin
+
+                        SeminarJnlLine.Description :=
+                        SeminarCharge.Description;
+                        SeminarJnlLine."Bill-to Customer No." :=
+                        SeminarCharge."Bill-to Customer No.";
+                        SeminarJnlLine.Type := SeminarCharge.Type;
+                        SeminarJnlLine.Quantity := SeminarCharge.Quantity;
+                        SeminarJnlLine."Unit Price" :=
+                        SeminarCharge."Unit Price";
+                        SeminarJnlLine."Total Price" :=
+                        SeminarCharge."Total Price";
+                        SeminarJnlLine.Chargeable :=
+                        SeminarCharge."To Invoice";
+
+                    end;
+            end;
+
+            SeminarJnlPostLine.RunWithCheck(SeminarJnlLine);
+
+        end;
     end;
 
     local procedure PostCharges();
+
     begin
+
+        SeminarCharge.reset;
+        SeminarCharge.SetRange("Document No.", SeminarRegHeader."No.");
+
+        if SeminarCharge.FindSet(false, false) then
+            repeat
+                PostSeminarJnlLine(3); // Charge
+            until SeminarCharge.next = 0;
 
     end;
 
